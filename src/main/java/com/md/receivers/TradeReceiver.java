@@ -48,7 +48,7 @@ public class TradeReceiver implements  Runnable{
             this.kafkaConsumer.subscribe(Arrays.asList(topic));
         }
         tradeBlockingQueue = new ArrayBlockingQueue<>(1024);
-        persister = new TradePersister(dbUrl, dbName,"marketprice",tradeBlockingQueue);
+        persister = new TradePersister(dbUrl, dbName,"trades",tradeBlockingQueue);
         LOGGER.info("Trade receiver started ");
     }
 

@@ -48,7 +48,7 @@ public class MarketPriceReceiver implements Runnable {
             this.kafkaConsumer.subscribe(Arrays.asList(topic));
         }
         quoteBlockingQueue = new ArrayBlockingQueue<>(1024);
-        persister = new MarketPricePersister(dbUrl, dbName, "trades", quoteBlockingQueue);
+        persister = new MarketPricePersister(dbUrl, dbName, "marketprice", quoteBlockingQueue);
         LOGGER.info("Quote receiver started ");
     }
 

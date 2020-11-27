@@ -27,8 +27,9 @@ public class MarketPricePersister implements Persister<MarketPrice>{
         this.dbName = dbName;
         this.collectionName = collectionName;
         this.marketPriceQueue = marketPriceQueue;
-        mongoDb = connect(MONGO_DB_URL, DB_NAME);
+        mongoDb = connect(dbUrl, dbName);
         LOGGER.info("MarketPrice persister connected with {} ",mongoDb);
+        new Thread(this).start();
     }
 
     public boolean isRunning() {
@@ -52,7 +53,7 @@ public class MarketPricePersister implements Persister<MarketPrice>{
             if(marketPrice!=null){
                 MongoCollection<Document> collection = mongoDb.getCollection(collectionName).withWriteConcern(WriteConcern.MAJORITY).withReadPreference(ReadPreference.primaryPreferred());
                 //courseCollection.insertOne(new Document("name", studentName).append("age", age).append("gpa", gpa));
-
+                LOGGER.info("persisted new marketprice to {}", collectionName);
             }
         }
     }

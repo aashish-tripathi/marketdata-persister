@@ -13,9 +13,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
 
-public class QuotePersister implements Persister<Quote>{
+public class QuotePersister implements Persister<Quote> {
 
-    private volatile boolean running=true;
+    private volatile boolean running = true;
     private final String dbUrl;
     private final String dbName;
     private String collectionName;
@@ -24,13 +24,14 @@ public class QuotePersister implements Persister<Quote>{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(QuotePersister.class);
 
-    public QuotePersister(String dbUrl,String dbName,String collectionName, BlockingQueue<Quote> marketPriceQueue) {
+    public QuotePersister(String dbUrl, String dbName, String collectionName, BlockingQueue<Quote> marketPriceQueue) {
         this.dbUrl = dbUrl;
         this.dbName = dbName;
         this.collectionName = collectionName;
         this.blockingQueue = marketPriceQueue;
-        mongoDb = connect(MONGO_DB_URL, DB_NAME);
-        LOGGER.info("Quote persister connected with {} ",mongoDb);
+        mongoDb = connect(dbUrl, dbName);
+        LOGGER.info("Quote persister connected with {} ", mongoDb);
+        new Thread(this).start();
     }
 
     public boolean isRunning() {
@@ -49,11 +50,15 @@ public class QuotePersister implements Persister<Quote>{
 
     @Override
     public void run() {
-        while (isRunning()){
+        while (isRunning()) {
             Quote quote = blockingQueue.poll();
-            if(quote!=null){
-                MongoCollection<Document> collection = mongoDb.getCollection(collectionName).withWriteConcern(WriteConcern.MAJORITY).withReadPreference(ReadPreference.primaryPreferred());
-                //courseCollection.insertOne(new Document("name", studentName).append("age", age).append("gpa", gpa));
+            if (quote != null) {
+                MongoCollection<Document> quoteCollection = mongoDb.getCollection(collectionName).withWriteConcern(WriteConcern.MAJORITY).withReadPreference(ReadPreference.primaryPreferred());
+                quoteCollection.insertOne(new Document("time", quote.getTime().longValue()).append("bidsize", quote.getBidsize().longValue())
+                                                      .append("bidprice", quote.getBidprice().doubleValue()).append("asksize", quote.getAsksize().longValue())
+                                                      .append("askprice", quote.getAskprice().doubleValue()).append("symbol", quote.getSymbol().toString())
+                                                      .append("exchange", quote.getExchange().toString()));
+                LOGGER.info("persisted new quote to {}", collectionName);
 
             }
         }
