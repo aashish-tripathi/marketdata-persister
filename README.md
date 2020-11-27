@@ -1,4 +1,4 @@
-# marketdata-persister
+# Market Data Persister
 Following pre-requisites required to run this application
 
 1 Linux/Ubuntu environment
