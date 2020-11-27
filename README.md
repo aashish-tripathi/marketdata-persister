@@ -2,7 +2,9 @@
 Following pre-requisites required to run this application
 
 1 Linux/Ubuntu environment
+
 2 Kafka/EMS installation in clustered mode
+
 3 Mongo db installation in clustered mode
 
 Mongo DB steps
