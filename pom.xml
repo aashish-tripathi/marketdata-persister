@@ -56,11 +56,6 @@
             <artifactId>org.md.tibjmsapps</artifactId>
             <version>2.0</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>2.0-rc1</version>
-        </dependency>
         <!-- https://mvnrepository.com/artifact/org.quartz-scheduler/quartz -->
         <dependency>
             <groupId>org.quartz-scheduler</groupId>
@@ -94,8 +89,62 @@
             <artifactId>kafka-clients</artifactId>
             <version>2.5.0</version>
         </dependency>
+        <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>zero-allocation-hashing</artifactId>
+            <version>0.11</version>
+        </dependency>
+        <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>chronicle-queue</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+        </dependency>
 
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- <dependency>
+             <groupId>com.vaadin.addon</groupId>
+             <artifactId>vaadin-charts</artifactId>
+             <version>3.2.0</version>
+         </dependency>-->
+      <!--  <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>chronicle-map</artifactId>
+            <version>3.17.2</version>
+        </dependency>
+        <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>chronicle-queue</artifactId>
+            <version>5.20.114</version>
+
+        </dependency>-->
     </dependencies>
+    <dependencyManagement>
+
+        <dependencies>
+            <dependency>
+                <groupId>net.openhft</groupId>
+                <artifactId>third-party-bom</artifactId>
+                <!-- PLEASE DON'T LEAVE THIS ON A SNAPSHOT because they get missed in a release  -->
+                <type>pom</type>
+                <version>3.19.1</version>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.openhft</groupId>
+                <artifactId>chronicle-bom</artifactId>
+                <version>2.19.138</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <build>
         <plugins>
             <plugin>
