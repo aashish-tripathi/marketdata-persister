@@ -69,7 +69,6 @@ public class MnMarketPricePersister implements Persister<MarketPrice> {
                         .append("symbol", marketPrice.getSymbol().toString()).append("exchange", marketPrice.getExchange().toString()));
                 LOGGER.info("added new marketprice to {}", collectionName);
             }
-            LOGGER.info("Queue is empty");
         }
     }
 
