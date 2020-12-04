@@ -7,26 +7,31 @@ import net.openhft.chronicle.queue.impl.single.SingleChronicleQueue;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class ChMarketPricePersister implements Persister<MarketPrice> {
 
     private volatile boolean running=true;
     private SingleChronicleQueue queue;
-    private BlockingQueue<MarketPrice> marketPriceQueue;
+    private BlockingQueue<MarketPrice> marketPriceQueue = new ArrayBlockingQueue<>(1024);;;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChMarketPricePersister.class);
 
-    public ChMarketPricePersister(String path, BlockingQueue<MarketPrice> marketPriceQueue) {
+    public ChMarketPricePersister(String path) {
         this.queue = SingleChronicleQueueBuilder.binary(path).build();
-        this.marketPriceQueue = marketPriceQueue;
-
-        LOGGER.info("MarketPrice persister connected with {} ");
         new Thread(this).start();
+        LOGGER.info("MarketPrice persistence started with {} ",queue);
     }
 
     public boolean isRunning() {
         return running;
+    }
+
+    @Override
+    public void stop(boolean flag) {
+        this.running=flag;
     }
 
     @Override
@@ -46,7 +51,7 @@ public class ChMarketPricePersister implements Persister<MarketPrice> {
             MarketPrice marketPrice = marketPriceQueue.poll();
             if(marketPrice!=null){
                 appender.writeText(marketPrice.toString());
-                LOGGER.info("persisted new marketprice to {}");
+                LOGGER.info("Added new marketprice to {}", queue);
             }
         }
     }

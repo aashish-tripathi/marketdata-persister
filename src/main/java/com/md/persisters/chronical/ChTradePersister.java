@@ -8,26 +8,30 @@ import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class ChTradePersister implements Persister<Trade> {
 
     private volatile boolean running=true;
     private SingleChronicleQueue queue;
-    private BlockingQueue<Trade> tradeQueue;
+    private BlockingQueue<Trade>  tradeQueue = new ArrayBlockingQueue<>(1024);
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChTradePersister.class);
 
-    public ChTradePersister(String path, BlockingQueue<Trade> tradeBlockingQueue) {
+    public ChTradePersister(String path) {
         this.queue = SingleChronicleQueueBuilder.binary(path).build();
-        this.tradeQueue = tradeBlockingQueue;
-
-        LOGGER.info("Trade persister connected with {} ", queue);
         new Thread(this).start();
+        LOGGER.info("Trade persistence started with {} ",queue);
     }
 
     public boolean isRunning() {
         return running;
+    }
+
+    @Override
+    public void stop(boolean flag) {
+        this.running=flag;
     }
 
     @Override
@@ -36,9 +40,8 @@ public class ChTradePersister implements Persister<Trade> {
         while (isRunning()){
             Trade marketPrice = tradeQueue.poll();
             if(marketPrice!=null){
-
                 appender.writeText(marketPrice.toString());
-                LOGGER.info("persisted new trade to {}",queue);
+                LOGGER.info("added new trade to {}",queue);
             }
         }
     }

@@ -16,22 +16,21 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class ChQuotePersister implements Persister<Quote> {
 
     private volatile boolean running=true;
     private SingleChronicleQueue queue;
-    private BlockingQueue<Quote> marketPriceQueue;
+    private BlockingQueue<Quote>  blockingQueue = new ArrayBlockingQueue<>(1024);;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChQuotePersister.class);
 
-    public ChQuotePersister(String path, BlockingQueue<Quote> marketPriceQueue) {
+    public ChQuotePersister(String path) {
         this.queue = SingleChronicleQueueBuilder.binary(path).build();
-        this.marketPriceQueue = marketPriceQueue;
-
-        LOGGER.info("MarketPrice persister connected with {} ");
         new Thread(this).start();
+        LOGGER.info("Quote persistence started with {} ",queue);
     }
 
     public boolean isRunning() {
@@ -39,13 +38,18 @@ public class ChQuotePersister implements Persister<Quote> {
     }
 
     @Override
+    public void stop(boolean flag) {
+        this.running=flag;
+    }
+
+    @Override
     public void run() {
         ExcerptAppender appender = queue.acquireAppender();
         while (isRunning()){
-            Quote marketPrice = marketPriceQueue.poll();
+            Quote marketPrice = blockingQueue.poll();
             if(marketPrice!=null){
                 appender.writeText(marketPrice.toString());
-                LOGGER.info("persisted new quote to {}");
+                LOGGER.info("Added new quote to {}", queue);
             }
         }
     }
@@ -53,7 +57,7 @@ public class ChQuotePersister implements Persister<Quote> {
     @Override
     public void addMarketData(Quote quote) {
         try {
-            marketPriceQueue.put(quote);
+            blockingQueue.put(quote);
         } catch (InterruptedException e) {
             e.printStackTrace();
             LOGGER.error("Thread has been interrupted ");
