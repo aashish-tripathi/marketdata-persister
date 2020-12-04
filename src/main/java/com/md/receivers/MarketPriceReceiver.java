@@ -35,11 +35,10 @@ public class MarketPriceReceiver implements Runnable {
     private EMSBroker emsBroker;
     private KafkaConsumer<String, String> kafkaConsumer;
     private volatile boolean running = true;
-    private BlockingQueue<MarketPrice> marketPriceBlockingQueue;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TradeReceiver.class);
 
-    public MarketPriceReceiver(final String serverUrl, final String topic, final boolean kafka, String dbUrl, String dbName, boolean mongo) throws JMSException {
+    public MarketPriceReceiver(final String serverUrl, final String topic, final boolean kafka, String mongoDBUrl, String mongoDBName, boolean mongo, String collectionOrQueueName) throws JMSException {
         this.topic = topic;
         this.kafka = kafka;
         if (!kafka) {
@@ -49,14 +48,13 @@ public class MarketPriceReceiver implements Runnable {
             this.kafkaConsumer = new KafkaBroker(serverUrl).createConsumer(null);
             this.kafkaConsumer.subscribe(Arrays.asList(topic));
         }
-        marketPriceBlockingQueue = new ArrayBlockingQueue<>(1024);
         if(mongo){
-            persister = new MnMarketPricePersister(dbUrl, dbName, "marketprice", marketPriceBlockingQueue);
+            persister = new MnMarketPricePersister(mongoDBUrl, mongoDBName, collectionOrQueueName);
+            LOGGER.info("MarketPrice receiver thread started with {}",persister);
         }else{
-            persister = new ChMarketPricePersister("marketprice", marketPriceBlockingQueue);
+            persister = new ChMarketPricePersister(collectionOrQueueName);
+            LOGGER.info("MarketPrice receiver thread started with {}",persister);
         }
-
-        LOGGER.info("Quote receiver started ");
     }
 
     @Override
@@ -88,8 +86,8 @@ public class MarketPriceReceiver implements Runnable {
         if (msg instanceof TextMessage) {
             TextMessage message = (TextMessage) msg;
             byte[] decoded = Base64.getDecoder().decode(message.getText());
-            MarketPrice marketPricequote = deSerealizeAvroHttpRequestJSON(decoded);
-            marketPriceBlockingQueue.put(marketPricequote);
+            MarketPrice marketPrice = deSerealizeAvroHttpRequestJSON(decoded);
+            persister.addMarketData(marketPrice);
         }
     }
 
@@ -99,10 +97,10 @@ public class MarketPriceReceiver implements Runnable {
             String symbol = record.key();
             String data = record.value();
             byte[] decoded = Base64.getDecoder().decode(data);
-            MarketPrice marketPricequote = deSerealizeAvroHttpRequestJSON(decoded);
-            marketPriceBlockingQueue.put(marketPricequote);
-            LOGGER.info("Key: " + symbol + ", Value:" + data);
-            LOGGER.info("Partition:" + record.partition() + ",Offset:" + record.offset());
+            MarketPrice marketPrice = deSerealizeAvroHttpRequestJSON(decoded);
+            persister.addMarketData(marketPrice);
+            //LOGGER.info("Key: " + symbol + ", Value:" + data);
+            //LOGGER.info("Partition:" + record.partition() + ",Offset:" + record.offset());
         }
     }
 
@@ -125,5 +123,6 @@ public class MarketPriceReceiver implements Runnable {
 
     public void setRunning(boolean running) {
         this.running = running;
+        persister.stop(this.running);
     }
 }

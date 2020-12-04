@@ -10,6 +10,7 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class MnMarketPricePersister implements Persister<MarketPrice> {
@@ -19,18 +20,17 @@ public class MnMarketPricePersister implements Persister<MarketPrice> {
     private final String dbName;
     private String collectionName;
     private MongoDatabase mongoDb;
-    private BlockingQueue<MarketPrice> marketPriceQueue;
+    private BlockingQueue<MarketPrice> marketPriceQueue = new ArrayBlockingQueue<>(1024);;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MnMarketPricePersister.class);
 
-    public MnMarketPricePersister(String dbUrl, String dbName, String collectionName, BlockingQueue<MarketPrice> marketPriceQueue) {
+    public MnMarketPricePersister(String dbUrl, String dbName, String collectionName) {
         this.dbUrl = dbUrl;
         this.dbName = dbName;
         this.collectionName = collectionName;
-        this.marketPriceQueue = marketPriceQueue;
         mongoDb = connect(dbUrl, dbName);
-        LOGGER.info("MarketPrice persister connected with {} ",mongoDb);
         new Thread(this).start();
+        LOGGER.info("MarketPrice persistence started with {} ",mongoDb);
     }
 
     public boolean isRunning() {
@@ -43,14 +43,20 @@ public class MnMarketPricePersister implements Persister<MarketPrice> {
             marketPriceQueue.put(marketPrice);
         } catch (InterruptedException e) {
             e.printStackTrace();
-            LOGGER.error("Thread has been tnterrupted ");
+            LOGGER.error("Thread has been interrupted ");
         }
+    }
+
+    @Override
+    public void stop(boolean flag) {
+        this.running=false;
     }
 
     @Override
     public void run() {
         while (isRunning()){
             MarketPrice marketPrice = marketPriceQueue.poll();
+
             if(marketPrice!=null){
                 MongoCollection<Document> marketPriceCollectio = mongoDb.getCollection(collectionName).withWriteConcern(WriteConcern.MAJORITY).withReadPreference(ReadPreference.primaryPreferred());
                 //courseCollection.insertOne(new Document("name", studentName).append("age", age).append("gpa", gpa));
@@ -61,8 +67,9 @@ public class MnMarketPricePersister implements Persister<MarketPrice> {
                         .append("uperCircuit", marketPrice.getUperCircuit().doubleValue()).append("lowerCircuit", marketPrice.getLowerCircuit().doubleValue())
                         .append("lastTradeTime", marketPrice.getLastTradeTime().doubleValue()).append("lastTradeSize", marketPrice.getLastTradeSize().doubleValue())
                         .append("symbol", marketPrice.getSymbol().toString()).append("exchange", marketPrice.getExchange().toString()));
-                LOGGER.info("persisted new marketprice to {}", collectionName);
+                LOGGER.info("added new marketprice to {}", collectionName);
             }
+            LOGGER.info("Queue is empty");
         }
     }
 

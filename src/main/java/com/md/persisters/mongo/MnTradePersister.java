@@ -12,6 +12,7 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class MnTradePersister implements Persister<Trade> {
@@ -21,22 +22,26 @@ public class MnTradePersister implements Persister<Trade> {
     private final String dbName;
     private String collectionName;
     private MongoDatabase mongoDb;
-    private BlockingQueue<Trade> tradeBlockingQueue;
+    private BlockingQueue<Trade>  tradeBlockingQueue = new ArrayBlockingQueue<>(1024);
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MnTradePersister.class);
 
-    public MnTradePersister(String dbUrl, String dbName, String collectionName, BlockingQueue<Trade> tradeBlockingQueue) {
+    public MnTradePersister(String dbUrl, String dbName, String collectionName) {
         this.dbUrl = dbUrl;
         this.dbName = dbName;
         this.collectionName = collectionName;
-        this.tradeBlockingQueue = tradeBlockingQueue;
         mongoDb = connect(dbUrl, dbName);
-        LOGGER.info("Trade persister connected with {} ",mongoDb);
         new Thread(this).start();
+        LOGGER.info("Trade persistence started with {} ",mongoDb);
     }
 
     public boolean isRunning() {
         return running;
+    }
+
+    @Override
+    public void stop(boolean flag) {
+        this.running=false;
     }
 
      @Override
@@ -59,7 +64,7 @@ public class MnTradePersister implements Persister<Trade> {
                 tradeCollection.insertOne(new Document("time", trade.getTime().longValue()).append("size", trade.getSize())
                                                        .append("price", trade.getPrice().doubleValue()).append("symbol", trade.getSymbol().toString())
                                                        .append("exchange", trade.getExchange().toString()));
-                LOGGER.info("persisted new trade to {}", collectionName);
+                LOGGER.info("added new trade to {}", collectionName);
             }
         }
     }

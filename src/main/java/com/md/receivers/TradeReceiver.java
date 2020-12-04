@@ -27,7 +27,7 @@ import java.util.Base64;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-public class TradeReceiver implements  Runnable{
+public class TradeReceiver implements Runnable {
 
     private boolean kafka;
     private String topic;
@@ -35,11 +35,10 @@ public class TradeReceiver implements  Runnable{
     private EMSBroker emsBroker;
     private KafkaConsumer<String, String> kafkaConsumer;
     private volatile boolean running = true;
-    private BlockingQueue<Trade> tradeBlockingQueue;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TradeReceiver.class);
 
-    public TradeReceiver(final String serverUrl, final String topic, final boolean kafka,String dbUrl, String dbName, boolean mongo) throws JMSException {
+    public TradeReceiver(final String serverUrl, final String topic, final boolean kafka, String mongoDbUrl, String mongoDBName, boolean mongo, String collectionOrQueueName) throws JMSException {
         this.topic = topic;
         this.kafka = kafka;
         if (!kafka) {
@@ -49,14 +48,13 @@ public class TradeReceiver implements  Runnable{
             this.kafkaConsumer = new KafkaBroker(serverUrl).createConsumer(null);
             this.kafkaConsumer.subscribe(Arrays.asList(topic));
         }
-        tradeBlockingQueue = new ArrayBlockingQueue<>(1024);
-        if(mongo){
-            persister = new MnTradePersister(dbUrl, dbName,"trades",tradeBlockingQueue);
-        }else{
-            persister = new ChTradePersister("trades",tradeBlockingQueue);
+        if (mongo) {
+            persister = new MnTradePersister(mongoDbUrl, mongoDBName, collectionOrQueueName);
+            LOGGER.info("Trade receiver thread started with {}",persister);
+        } else {
+            persister = new ChTradePersister(collectionOrQueueName);
+            LOGGER.info("Trade receiver thread started with {}",persister);
         }
-
-        LOGGER.info("Trade receiver started ");
     }
 
     @Override
@@ -89,7 +87,7 @@ public class TradeReceiver implements  Runnable{
             TextMessage message = (TextMessage) msg;
             byte[] decoded = Base64.getDecoder().decode(message.getText());
             Trade trade = deSerealizeAvroHttpRequestJSON(decoded);
-            tradeBlockingQueue.put(trade);
+            persister.addMarketData(trade);
         }
     }
 
@@ -100,9 +98,9 @@ public class TradeReceiver implements  Runnable{
             String data = record.value();
             byte[] decoded = Base64.getDecoder().decode(data);
             Trade trade = deSerealizeAvroHttpRequestJSON(decoded);
-            tradeBlockingQueue.put(trade);
-            LOGGER.info("Key: " + symbol + ", Value:" + data);
-            LOGGER.info("Partition:" + record.partition() + ",Offset:" + record.offset());
+            persister.addMarketData(trade);
+            //LOGGER.info("Key: " + symbol + ", Value:" + data);
+            //LOGGER.info("Partition:" + record.partition() + ",Offset:" + record.offset());
         }
     }
 
@@ -125,5 +123,6 @@ public class TradeReceiver implements  Runnable{
 
     public void setRunning(boolean running) {
         this.running = running;
+        persister.stop(this.running);
     }
 }

@@ -12,6 +12,7 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class MnQuotePersister implements Persister<Quote> {
@@ -21,24 +22,27 @@ public class MnQuotePersister implements Persister<Quote> {
     private final String dbName;
     private String collectionName;
     private MongoDatabase mongoDb;
-    private BlockingQueue<Quote> blockingQueue;
+    private BlockingQueue<Quote>  blockingQueue = new ArrayBlockingQueue<>(1024);;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MnQuotePersister.class);
 
-    public MnQuotePersister(String dbUrl, String dbName, String collectionName, BlockingQueue<Quote> marketPriceQueue) {
+    public MnQuotePersister(String dbUrl, String dbName, String collectionName) {
         this.dbUrl = dbUrl;
         this.dbName = dbName;
         this.collectionName = collectionName;
-        this.blockingQueue = marketPriceQueue;
         mongoDb = connect(dbUrl, dbName);
-        LOGGER.info("Quote persister connected with {} ", mongoDb);
         new Thread(this).start();
+        LOGGER.info("Quote persistence started with {} ",mongoDb);
     }
 
     public boolean isRunning() {
         return running;
     }
 
+    @Override
+    public void stop(boolean flag) {
+        this.running=false;
+    }
     @Override
     public void addMarketData(Quote marketPrice) {
         try {
@@ -59,7 +63,7 @@ public class MnQuotePersister implements Persister<Quote> {
                                                       .append("bidprice", quote.getBidprice().doubleValue()).append("asksize", quote.getAsksize().longValue())
                                                       .append("askprice", quote.getAskprice().doubleValue()).append("symbol", quote.getSymbol().toString())
                                                       .append("exchange", quote.getExchange().toString()));
-                LOGGER.info("persisted new quote to {}", collectionName);
+                LOGGER.info("added new quote to {}", collectionName);
 
             }
         }
