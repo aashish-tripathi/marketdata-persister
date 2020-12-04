@@ -1,6 +1,7 @@
-package com.md.persisters;
+package com.md.persisters.mongo;
 
 import com.ashish.marketdata.avro.Quote;
+import com.md.persisters.Persister;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.ReadPreference;
@@ -13,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
 
-public class QuotePersister implements Persister<Quote> {
+public class MnQuotePersister implements Persister<Quote> {
 
     private volatile boolean running = true;
     private final String dbUrl;
@@ -22,9 +23,9 @@ public class QuotePersister implements Persister<Quote> {
     private MongoDatabase mongoDb;
     private BlockingQueue<Quote> blockingQueue;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(QuotePersister.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MnQuotePersister.class);
 
-    public QuotePersister(String dbUrl, String dbName, String collectionName, BlockingQueue<Quote> marketPriceQueue) {
+    public MnQuotePersister(String dbUrl, String dbName, String collectionName, BlockingQueue<Quote> marketPriceQueue) {
         this.dbUrl = dbUrl;
         this.dbName = dbName;
         this.collectionName = collectionName;

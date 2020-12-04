@@ -1,7 +1,8 @@
-package com.md.persisters;
+package com.md.persisters.mongo;
 
 import com.ashish.marketdata.avro.MarketPrice;
 
+import com.md.persisters.Persister;
 import com.mongodb.*;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -11,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
 
-public class MarketPricePersister implements Persister<MarketPrice>{
+public class MnMarketPricePersister implements Persister<MarketPrice> {
 
     private volatile boolean running=true;
     private final String dbUrl;
@@ -20,9 +21,9 @@ public class MarketPricePersister implements Persister<MarketPrice>{
     private MongoDatabase mongoDb;
     private BlockingQueue<MarketPrice> marketPriceQueue;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MarketPricePersister.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MnMarketPricePersister.class);
 
-    public MarketPricePersister(String dbUrl,String dbName,String collectionName, BlockingQueue<MarketPrice> marketPriceQueue) {
+    public MnMarketPricePersister(String dbUrl, String dbName, String collectionName, BlockingQueue<MarketPrice> marketPriceQueue) {
         this.dbUrl = dbUrl;
         this.dbName = dbName;
         this.collectionName = collectionName;
@@ -51,8 +52,15 @@ public class MarketPricePersister implements Persister<MarketPrice>{
         while (isRunning()){
             MarketPrice marketPrice = marketPriceQueue.poll();
             if(marketPrice!=null){
-                MongoCollection<Document> collection = mongoDb.getCollection(collectionName).withWriteConcern(WriteConcern.MAJORITY).withReadPreference(ReadPreference.primaryPreferred());
+                MongoCollection<Document> marketPriceCollectio = mongoDb.getCollection(collectionName).withWriteConcern(WriteConcern.MAJORITY).withReadPreference(ReadPreference.primaryPreferred());
                 //courseCollection.insertOne(new Document("name", studentName).append("age", age).append("gpa", gpa));
+                marketPriceCollectio.insertOne(new Document(
+                         "open", marketPrice.getOpen().doubleValue()).append("high", marketPrice.getHigh().doubleValue())
+                        .append("low", marketPrice.getLow().doubleValue()).append("close", marketPrice.getClose().doubleValue())
+                        .append("lastPrice", marketPrice.getLastPrice().doubleValue()).append("volume", marketPrice.getVolume().doubleValue())
+                        .append("uperCircuit", marketPrice.getUperCircuit().doubleValue()).append("lowerCircuit", marketPrice.getLowerCircuit().doubleValue())
+                        .append("lastTradeTime", marketPrice.getLastTradeTime().doubleValue()).append("lastTradeSize", marketPrice.getLastTradeSize().doubleValue())
+                        .append("symbol", marketPrice.getSymbol().toString()).append("exchange", marketPrice.getExchange().toString()));
                 LOGGER.info("persisted new marketprice to {}", collectionName);
             }
         }

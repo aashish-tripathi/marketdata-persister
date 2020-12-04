@@ -3,7 +3,9 @@ package com.md.receivers;
 import com.ashish.marketdata.avro.MarketPrice;
 import com.md.brokers.EMSBroker;
 import com.md.brokers.KafkaBroker;
-import com.md.persisters.MarketPricePersister;
+import com.md.persisters.Persister;
+import com.md.persisters.chronical.ChMarketPricePersister;
+import com.md.persisters.mongo.MnMarketPricePersister;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
@@ -29,15 +31,15 @@ public class MarketPriceReceiver implements Runnable {
 
     private boolean kafka;
     private String topic;
-    private MarketPricePersister persister;
+    private Persister persister;
     private EMSBroker emsBroker;
     private KafkaConsumer<String, String> kafkaConsumer;
     private volatile boolean running = true;
-    private BlockingQueue<MarketPrice> quoteBlockingQueue;
+    private BlockingQueue<MarketPrice> marketPriceBlockingQueue;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TradeReceiver.class);
 
-    public MarketPriceReceiver(final String serverUrl, final String topic, final boolean kafka, String dbUrl, String dbName) throws JMSException {
+    public MarketPriceReceiver(final String serverUrl, final String topic, final boolean kafka, String dbUrl, String dbName, boolean mongo) throws JMSException {
         this.topic = topic;
         this.kafka = kafka;
         if (!kafka) {
@@ -47,8 +49,13 @@ public class MarketPriceReceiver implements Runnable {
             this.kafkaConsumer = new KafkaBroker(serverUrl).createConsumer(null);
             this.kafkaConsumer.subscribe(Arrays.asList(topic));
         }
-        quoteBlockingQueue = new ArrayBlockingQueue<>(1024);
-        persister = new MarketPricePersister(dbUrl, dbName, "marketprice", quoteBlockingQueue);
+        marketPriceBlockingQueue = new ArrayBlockingQueue<>(1024);
+        if(mongo){
+            persister = new MnMarketPricePersister(dbUrl, dbName, "marketprice", marketPriceBlockingQueue);
+        }else{
+            persister = new ChMarketPricePersister("marketprice", marketPriceBlockingQueue);
+        }
+
         LOGGER.info("Quote receiver started ");
     }
 
@@ -58,13 +65,13 @@ public class MarketPriceReceiver implements Runnable {
         while (isRunning()) {
             if (!kafka) {
                 try {
-                    persistFromEMS();
+                    receiveFromEMS();
                 } catch (Exception e) {
                     LOGGER.error(e.getLocalizedMessage());
                 }
             } else {
                 try {
-                    persistFromKafka();
+                    receiveFromKafka();
                 } catch (Exception e) {
                     LOGGER.error(e.getLocalizedMessage());
                 }
@@ -74,7 +81,7 @@ public class MarketPriceReceiver implements Runnable {
         LOGGER.warn("Thread {} shutdown completed ", Thread.currentThread().getId());
     }
 
-    private void persistFromEMS() throws Exception {
+    private void receiveFromEMS() throws Exception {
         Message msg = emsBroker.consumer().receive();
         if (msg == null)
             return;
@@ -82,18 +89,18 @@ public class MarketPriceReceiver implements Runnable {
             TextMessage message = (TextMessage) msg;
             byte[] decoded = Base64.getDecoder().decode(message.getText());
             MarketPrice marketPricequote = deSerealizeAvroHttpRequestJSON(decoded);
-            quoteBlockingQueue.put(marketPricequote);
+            marketPriceBlockingQueue.put(marketPricequote);
         }
     }
 
-    private void persistFromKafka() throws Exception {
+    private void receiveFromKafka() throws Exception {
         ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofMillis(10));
         for (ConsumerRecord<String, String> record : records) {
             String symbol = record.key();
             String data = record.value();
             byte[] decoded = Base64.getDecoder().decode(data);
             MarketPrice marketPricequote = deSerealizeAvroHttpRequestJSON(decoded);
-            quoteBlockingQueue.put(marketPricequote);
+            marketPriceBlockingQueue.put(marketPricequote);
             LOGGER.info("Key: " + symbol + ", Value:" + data);
             LOGGER.info("Partition:" + record.partition() + ",Offset:" + record.offset());
         }

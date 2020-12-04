@@ -1,7 +1,7 @@
-package com.md.persisters;
+package com.md.persisters.mongo;
 
 import com.ashish.marketdata.avro.Trade;
-import com.md.receivers.TradeReceiver;
+import com.md.persisters.Persister;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.ReadPreference;
@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
 
-public class TradePersister implements Persister<Trade> {
+public class MnTradePersister implements Persister<Trade> {
 
     private volatile boolean running=true;
     private final String dbUrl;
@@ -23,9 +23,9 @@ public class TradePersister implements Persister<Trade> {
     private MongoDatabase mongoDb;
     private BlockingQueue<Trade> tradeBlockingQueue;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TradePersister.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MnTradePersister.class);
 
-    public TradePersister(String dbUrl,String dbName,String collectionName, BlockingQueue<Trade> tradeBlockingQueue) {
+    public MnTradePersister(String dbUrl, String dbName, String collectionName, BlockingQueue<Trade> tradeBlockingQueue) {
         this.dbUrl = dbUrl;
         this.dbName = dbName;
         this.collectionName = collectionName;

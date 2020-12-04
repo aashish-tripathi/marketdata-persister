@@ -40,16 +40,18 @@ public class StartMarketDataPersister {
         final String marketByPriceTopic = properties.getProperty("exsim.nse.marketbypricetopic");
         final String executionTopic = properties.getProperty("exsim.nse.marketbypricetopic");
 
+        final boolean mongo = false;
+
         // start trade consumers
-        TradeReceiver tradeReceiver = new TradeReceiver(serverUrl,tradeTopic,kafkaAsCarrier,mongoServerUrl,mongoDb);
+        TradeReceiver tradeReceiver = new TradeReceiver(serverUrl, tradeTopic, kafkaAsCarrier, mongoServerUrl, mongoDb, mongo);
         new Thread(tradeReceiver).start();
 
         // start quote consumers
-        QuoteReceiver quoteReceiver = new QuoteReceiver(serverUrl,quoteTopic,kafkaAsCarrier,mongoServerUrl,mongoDb);
+        QuoteReceiver quoteReceiver = new QuoteReceiver(serverUrl, quoteTopic, kafkaAsCarrier, mongoServerUrl, mongoDb, mongo);
         new Thread(quoteReceiver).start();
 
         // start market price consumers
-        MarketPriceReceiver marketPriceReceiver = new MarketPriceReceiver(serverUrl,marketPriceTopic,kafkaAsCarrier,mongoServerUrl,mongoDb);
+        MarketPriceReceiver marketPriceReceiver = new MarketPriceReceiver(serverUrl, marketPriceTopic, kafkaAsCarrier, mongoServerUrl, mongoDb, mongo);
         new Thread(marketPriceReceiver).start();
 
 

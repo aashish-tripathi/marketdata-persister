@@ -3,7 +3,9 @@ package com.md.receivers;
 import com.ashish.marketdata.avro.Trade;
 import com.md.brokers.EMSBroker;
 import com.md.brokers.KafkaBroker;
-import com.md.persisters.TradePersister;
+import com.md.persisters.Persister;
+import com.md.persisters.chronical.ChTradePersister;
+import com.md.persisters.mongo.MnTradePersister;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
@@ -29,7 +31,7 @@ public class TradeReceiver implements  Runnable{
 
     private boolean kafka;
     private String topic;
-    private TradePersister persister;
+    private Persister persister;
     private EMSBroker emsBroker;
     private KafkaConsumer<String, String> kafkaConsumer;
     private volatile boolean running = true;
@@ -37,7 +39,7 @@ public class TradeReceiver implements  Runnable{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TradeReceiver.class);
 
-    public TradeReceiver(final String serverUrl, final String topic, final boolean kafka,String dbUrl, String dbName) throws JMSException {
+    public TradeReceiver(final String serverUrl, final String topic, final boolean kafka,String dbUrl, String dbName, boolean mongo) throws JMSException {
         this.topic = topic;
         this.kafka = kafka;
         if (!kafka) {
@@ -48,7 +50,12 @@ public class TradeReceiver implements  Runnable{
             this.kafkaConsumer.subscribe(Arrays.asList(topic));
         }
         tradeBlockingQueue = new ArrayBlockingQueue<>(1024);
-        persister = new TradePersister(dbUrl, dbName,"trades",tradeBlockingQueue);
+        if(mongo){
+            persister = new MnTradePersister(dbUrl, dbName,"trades",tradeBlockingQueue);
+        }else{
+            persister = new ChTradePersister("trades",tradeBlockingQueue);
+        }
+
         LOGGER.info("Trade receiver started ");
     }
 
@@ -58,13 +65,13 @@ public class TradeReceiver implements  Runnable{
         while (isRunning()) {
             if (!kafka) {
                 try {
-                    persistFromEMS();
+                    receiveFromEMS();
                 } catch (Exception e) {
                     LOGGER.error(e.getLocalizedMessage());
                 }
             } else {
                 try {
-                    persistFromKafka();
+                    receiveFromKafka();
                 } catch (Exception e) {
                     LOGGER.error(e.getLocalizedMessage());
                 }
@@ -74,7 +81,7 @@ public class TradeReceiver implements  Runnable{
         LOGGER.warn("Thread {} shutdown completed ", Thread.currentThread().getId());
     }
 
-    private void persistFromEMS() throws Exception {
+    private void receiveFromEMS() throws Exception {
         Message msg = emsBroker.consumer().receive();
         if (msg == null)
             return;
@@ -86,7 +93,7 @@ public class TradeReceiver implements  Runnable{
         }
     }
 
-    private void persistFromKafka() throws Exception {
+    private void receiveFromKafka() throws Exception {
         ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofMillis(10));
         for (ConsumerRecord<String, String> record : records) {
             String symbol = record.key();
